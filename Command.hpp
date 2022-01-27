@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <new>
+#include <signal.h>
 #include <string>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -729,6 +730,22 @@ public:
 	{
 		_setApplication( application.c_str() );
 		return *this;
+	}
+
+	/**
+	 * Send a terminate signal to the child process if one is running.
+	 * @return Zero is returned on success, else an error code is returned.
+	 */
+	int terminate()
+	{
+		if ( 0 < mChildProcessID )
+		{
+			int errorCode;
+			errorCode = kill( mChildProcessID, SIGTERM );
+			return errno;
+		}
+
+		return 0;
 	}
 
 	/**
