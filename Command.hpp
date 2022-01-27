@@ -92,6 +92,49 @@ private:
 		}
 	}
 
+	void _clear()
+	{
+		if ( nullptr != mApplication )
+		{
+			free( mApplication );
+			mApplication = nullptr;
+		}
+
+		for ( size_t index( -1 ); ++index < mArgumentCount; )
+		{
+			if ( nullptr != mArguments[ index ] )
+			{
+				free( mArguments[ index ] );
+				mArguments[ index ] = nullptr;
+			}
+		}
+
+		free( mArguments );
+		mArguments = nullptr;
+
+		mArgumentCount = 0;
+		mArgumentsBufferSize = 0;
+
+		mChildProcessID = -1;
+		mExitStatus = 0;
+		mHasInPipe = false;
+		mHasOutPipe = false;
+		mRedirectStdoutToCommand = false;
+		mRedirectStdoutToLogFile = false;
+		mRedirectStderrToLogFile = false;
+
+		if ( nullptr != mNextCommand )
+		{
+			mNextCommand->_clear();
+		}
+	}
+
+	// Copy the contents of other to this instance.
+	void _copyAssignment(
+		const Command& other )
+	{
+	}
+
 	// Fork to create the child process,
 	// establish any redirection as configured,
 	// and then execute the set application.
@@ -266,6 +309,12 @@ private:
 		mRedirectStderrToLogFile = false;
 	}
 
+	// Move the contents of other to this instance.
+	void _moveAssignment(
+		Command&& other )
+	{
+	}
+
 	// Set the name of the application in both mApplication and mArguments[ 0 ]
 	void _setApplication(
 		const char* application )
@@ -308,6 +357,24 @@ public:
 	Command()
 	{
 		_initialize();
+	}
+
+	/**
+	 * Move constructor.
+	 * @param other Command object to move to this instance.
+	 */
+	Command( Command&& other )
+	{
+		_moveAssignment( other );
+	}
+
+	/**
+	 * Copy constructor.
+	 * @param other Command object to copy to this instance.
+	 */
+	Command( const Command& other )
+	{
+		_copyAssignment( other );
 	}
 
 	/**
@@ -365,6 +432,7 @@ public:
 	 */
 	~Command()
 	{
+		_clear();
 	}
 
 	/**
@@ -580,6 +648,38 @@ public:
 	}
 
 	/**
+	 * Move assignment operator.
+	 * @param other
+	 * @return A reference to this Command object is returned.
+	 */
+	Command& operator=(
+		Command&& other )
+	{
+		if ( this != &other )
+		{
+			_moveAssignment( other );
+		}
+
+		return *this;
+	}
+
+	/**
+	 * Copy assignment operator.
+	 * @param other
+	 * @return A reference to this Command object is returned.
+	 */
+	Command& operator=(
+		const Command& other )
+	{
+		if ( this != &other )
+		{
+			_copyAssignment( other );
+		}
+
+		return *this;
+	}
+
+	/**
 	 * Redirect the stderr stream to stdout.
 	 * @return A reference to this Command object is returned.
 	 */
@@ -603,6 +703,8 @@ public:
 		mRedirectStdoutToLogFile = false;
 		mRedirectStdoutToCommand = true;
 		mNextCommand = command;
+
+		return *this;
 	}
 
 	/**
