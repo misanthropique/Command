@@ -100,7 +100,7 @@ private:
 			mApplication = nullptr;
 		}
 
-		for ( size_t index( -1 ); ++index < mArgumentCount; )
+		for ( size_t index( -1 ); ++index < mArgumentsBufferSize; )
 		{
 			if ( nullptr != mArguments[ index ] )
 			{
