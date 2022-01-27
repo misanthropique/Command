@@ -365,7 +365,7 @@ public:
 	 */
 	Command( Command&& other )
 	{
-		_moveAssignment( other );
+		_moveAssignment( std::move( other ) );
 	}
 
 	/**
@@ -657,7 +657,7 @@ public:
 	{
 		if ( this != &other )
 		{
-			_moveAssignment( other );
+			_moveAssignment( std::move( other ) );
 		}
 
 		return *this;
