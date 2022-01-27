@@ -376,6 +376,7 @@ public:
 		const char* argument )
 	{
 		_appendArguments( std::vector< std::string >{ argument } );
+		return *this;
 	}
 
 	/**
@@ -387,6 +388,7 @@ public:
 		const std::string& argument )
 	{
 		_appendArguments( std::vector< std::string >{ argument } );
+		return *this;
 	}
 
 	/**
@@ -398,6 +400,7 @@ public:
 		const std::vector< std::string >& arguments )
 	{
 		_appendArguments( arguments );
+		return *this;
 	}
 
 	/**
