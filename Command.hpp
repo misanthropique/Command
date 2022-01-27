@@ -289,7 +289,7 @@ private:
 		}
 
 		mApplication = strdup( application );
-		char* forwardSlash = strrchr( application, '/' );
+		const char* forwardSlash = strrchr( application, '/' );
 
 		if ( nullptr != forwardSlash )
 		{
