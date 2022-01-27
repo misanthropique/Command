@@ -598,6 +598,8 @@ public:
 		Command* command )
 	{
 		mRedirectStdoutToLogFile = false;
+		mRedirectStdoutToCommand = true;
+		mNextCommand = command;
 	}
 
 	/**
