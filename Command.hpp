@@ -160,7 +160,7 @@ private:
 			{
 				// Redirect STDERR to a log file
 				dup2( fileno( stderrLogFile ), STDERR_FILENO );
-				flose( stderrLogFile );
+				fclose( stderrLogFile );
 			}
 
 			if ( '/' == mApplication[ 0 ] )
@@ -184,6 +184,20 @@ private:
 		}
 
 		return 0;
+
+	closeFileHandlesAndReturnError:
+
+		if ( nullptr != stdoutLogFile )
+		{
+			fclose( stdoutLogFile );
+		}
+
+		if ( nullptr != stderrLogFile )
+		{
+			fclose( stderrLogFile );
+		}
+
+		return -errno;
 	}
 
 	// Generate the name of the log files for stdout and stderr
