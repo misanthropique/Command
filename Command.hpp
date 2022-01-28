@@ -34,6 +34,7 @@
  * at a later point in time.
  *
  * TODO:
+ *   [ ] Rewrite so that piping is handled by CommandPipeline
  *   [ ] Complete redirectStderrToStdout()
  *   [ ] Add a terminate method
  *   [ ] Create a Pipe object to manage command pipelines.
@@ -50,7 +51,7 @@ private:
 	int mExitStatus;
 
 	bool mRedirectStdoutToCommand;
-	Command* mNextCommand;
+	Command mNextCommand;
 	bool mHasInPipe;
 	bool mHasOutPipe;
 
@@ -134,6 +135,7 @@ private:
 	void _copyAssignment(
 		const Command& other )
 	{
+		this->_clear();
 	}
 
 	// Fork to create the child process,
