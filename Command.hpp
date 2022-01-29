@@ -36,9 +36,6 @@
  * At the moment a 1-to-many (for std(out|err) to many stdin) is not needed
  * any where, but should the occasion arise I can integrate that behaviour
  * at a later point in time.
- *
- * TODO:
- *   [ ] Complete redirectStderrToStdout()
  */
 class Command
 {
@@ -576,9 +573,9 @@ public:
 	{
 		int returnCode = 0;
 
-		if ( 0 == ( returnCode = execute() ) )
+		if ( 0 == ( returnCode = this->execute() ) )
 		{
-			returnCode = wait();
+			returnCode = this->wait();
 		}
 
 		return returnCode;
@@ -712,16 +709,6 @@ public:
 			_copyAssignment( other );
 		}
 
-		return *this;
-	}
-
-	/**
-	 * Redirect the stderr stream to stdout.
-	 * @return A reference to this Command object is returned.
-	 */
-	Command& redirectStderrToStdout()
-	{
-		// TODO: Complete this method.
 		return *this;
 	}
 
