@@ -9,15 +9,19 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <new>
 #include <signal.h>
 #include <string>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <utility>
 #include <vector>
 
 /**
+ * Required standard: C++14
+ *
  * A management class for executing other applications
  * without all the hassle of having to write the same code repeatedly.
  *
@@ -34,31 +38,23 @@
  * at a later point in time.
  *
  * TODO:
- *   [ ] Rewrite so that piping is handled by CommandPipeline
  *   [ ] Complete redirectStderrToStdout()
- *   [ ] Add a terminate method
- *   [ ] Create a Pipe object to manage command pipelines.
  */
 class Command
 {
 private:
-	char* mApplication;
-	char** mArguments;
-	size_t mArgumentCount;
-	size_t mArgumentsBufferSize;
+	char* mApplication; // Path to the application to be called
+	char** mArguments;  // Arguments to be passed to the application
+	size_t mArgumentCount; // Number of arguments present
+	size_t mArgumentsBufferSize; // Size of the arguments buffer
 
-	pid_t mChildProcessID;
-	int mExitStatus;
+	pid_t mChildProcessID; // PID of the child process
+	int mExitStatus; // Exit status of the child process
 
-	bool mRedirectStdoutToCommand;
-	Command mNextCommand;
-	bool mHasInPipe;
-	bool mHasOutPipe;
-
-	bool mRedirectStdoutToLogFile;
-	bool mRedirectStderrToLogFile;
-	std::string mStdoutLogFilePrefix;
-	std::string mStderrLogFilePrefix;
+	bool mRedirectStdoutToLogFile; // The stdout stream should be redirected to a log file
+	bool mRedirectStderrToLogFile; // The stderr stream should be redirected to a log file
+	std::string mStdoutLogFilePrefix; // Prefix of the stdout log file
+	std::string mStderrLogFilePrefix; // Prefix of the stderr log file
 
 	// Append arguments to the end of the arguments list;
 	// expanding the list if needed.
@@ -94,6 +90,7 @@ private:
 		}
 	}
 
+	// Free and zero the contents of this Command object.
 	void _clear()
 	{
 		if ( nullptr != mApplication )
@@ -117,18 +114,10 @@ private:
 		mArgumentCount = 0;
 		mArgumentsBufferSize = 0;
 
-		mChildProcessID = -1;
 		mExitStatus = 0;
-		mHasInPipe = false;
-		mHasOutPipe = false;
-		mRedirectStdoutToCommand = false;
+		mChildProcessID = -1;
 		mRedirectStdoutToLogFile = false;
 		mRedirectStderrToLogFile = false;
-
-		if ( nullptr != mNextCommand )
-		{
-			mNextCommand->_clear();
-		}
 	}
 
 	// Copy the contents of other to this instance.
@@ -136,31 +125,41 @@ private:
 		const Command& other )
 	{
 		this->_clear();
+
+		if ( nullptr != other.mApplication )
+		{
+			mApplication = strdup( other.mApplication );
+		}
+
+		mArgumentCount = other.mArgumentCount;
+		mArgumentsBufferSize = other.mArgumentsBufferSize;
+		mArguments = static_cast< char** >( calloc( mArgumentsBufferSize, sizeof( char* ) ) );
+
+		for ( size_t index( -1 ); ++index < mArgumentCount; )
+		{
+			mArguments[ index ] = strdup( other.mArguments[ index ] );
+		}
+
+		mRedirectStdoutToLogFile = other.mRedirectStdoutToLogFile;
+		mRedirectStderrToLogFile = other.mRedirectStderrToLogFile;
+		mStdoutLogFilePrefix = other.mStdoutLogFilePrefix;
+		mStderrLogFilePrefix = other.mStderrLogFilePrefix;
+
+		mChildProcessID = other.mChildProcessID;
+		mExitStatus = other.mExitStatus;
 	}
 
-	// Fork to create the child process,
-	// establish any redirection as configured,
-	// and then execute the set application.
-	int _forkRedirectAndExecute(
+	// This method is intended to be called by
+	// the CommandPipeline class when initializing the pipeline.
+	int _forkRedirectToPipeAndExecute(
 		int* inPipe,
 		int* outPipe )
 	{
-		FILE* stdoutLogFile = nullptr;
 		FILE* stderrLogFile = nullptr;
 		std::string stdoutLogFilePath;
 		std::string stderrLogFilePath;
 
 		_getStdLogFilePaths( stdoutLogFilePath, stderrLogFilePath );
-
-		// If we're not in a pipe and a log file has been requested
-		// for the stdout stream, then open the log file for stdout.
-		if ( ( not mHasOutPipe ) and mRedirectStdoutToLogFile )
-		{
-			if ( nullptr == ( stdoutLogFile = fopen( stdoutLogFilePath.c_str(), "a" ) ) )
-			{
-				goto closeFileHandlesAndReturnError;
-			}
-		}
 
 		// Open the log file for stderr.
 		if ( mRedirectStderrToLogFile )
@@ -195,12 +194,6 @@ private:
 				close( outPipe[ 0 ] );
 				close( outPipe[ 1 ] );
 			}
-			else if ( mRedirectStdoutToLogFile )
-			{
-				// Redirect STDOUT to a log file
-				dup2( fileno( stdoutLogFile ), STDOUT_FILENO );
-				fclose( stdoutLogFile );
-			}
 
 			if ( mRedirectStderrToLogFile )
 			{
@@ -232,11 +225,6 @@ private:
 		return 0;
 
 	closeFileHandlesAndReturnError:
-
-		if ( nullptr != stdoutLogFile )
-		{
-			fclose( stdoutLogFile );
-		}
 
 		if ( nullptr != stderrLogFile )
 		{
@@ -304,18 +292,28 @@ private:
 		mArguments = static_cast< char** >( calloc( mArgumentsBufferSize, sizeof( char* ) ) );
 		mChildProcessID = -1;
 		mExitStatus = 0;
-		mHasInPipe = true;
-		mHasOutPipe = true;
-		mRedirectStdoutToCommand = false;
-		mNextCommand = nullptr;
 		mRedirectStdoutToLogFile = false;
 		mRedirectStderrToLogFile = false;
+		mStdoutLogFilePrefix.clear();
+		mStderrLogFilePrefix.clear();
 	}
 
 	// Move the contents of other to this instance.
 	void _moveAssignment(
 		Command&& other )
 	{
+		mApplication = std::exchange( other.mApplication, nullptr );
+		mArguments = std::exchange( other.mArguments, nullptr );
+		mArgumentCount = std::exchange( other.mArgumentCount, 0 );
+		mArgumentsBufferSize = std::exchange( other.mArgumentsBufferSize, 0 );
+
+		mChildProcessID = std::exchange( other.mChildProcessID, -1 );
+		mExitStatus = std::exchange( other.mExitStatus, 0 );
+
+		mRedirectStdoutToLogFile = std::exchange( other.mRedirectStdoutToLogFile, false );
+		mRedirectStderrToLogFile = std::exchange( other.mRedirectStderrToLogFile, false );
+		mStdoutLogFilePrefix = std::move( other.mStdoutLogFilePrefix );
+		mStderrLogFilePrefix = std::move( other.mStderrLogFilePrefix );
 	}
 
 	// Set the name of the application in both mApplication and mArguments[ 0 ]
@@ -490,50 +488,84 @@ public:
 	 */
 	int execute()
 	{
-		std::vector< Command* > commandStack;
-		Command* command = this;
+		mExitStatus = 0;
 
-		// Get the full chain of commands to be executed.
-		do
+		FILE* stdoutLogFile = nullptr;
+		FILE* stderrLogFile = nullptr;
+		std::string stdoutLogFilePath;
+		std::string stderrLogFilePath;
+
+		_getStdLogFilePaths( stdoutLogFilePath, stderrLogFilePath );
+
+		// Open the log file for stdout.
+		if ( mRedirectStdoutToLogFile )
 		{
-			if ( ( nullptr == command->mApplication )
-				or ( 0 == strlen( command->mApplication ) ) )
+			if ( nullptr == ( stdoutLogFile = fopen( stdoutLogFilePath.c_str(), "a" ) ) )
 			{
-				return -ENOENT;
+				goto closeFileHandlesAndReturnError;
 			}
-
-			command->mHasOutPipe = ( nullptr != command->mNextCommand );
-			command->mHasInPipe = ( 0 < commandStack.size() );
-			commandStack.push_back( command );
-			command = command->mNextCommand;
 		}
-		while ( nullptr != command );
 
-		// Starting from the beginning of the vector
-		// execute all the commands in the pipe.
-		int pipes[ 2 ][ 2 ];
-		int inPipeIndex = 0, outPipeIndex = 1;
-
-		for ( size_t index( -1 ); ++index < commandStack.size(); )
+		// Open the log file for stderr.
+		if ( mRedirectStderrToLogFile )
 		{
-			command = commandStack[ index ];
-			int* inPipe = ( command->mHasInPipe ) ? pipes[ inPipeIndex ] : nullptr;
-			int* outPipe = ( command->mHasOutPipe ) ? pipes[ outPipeIndex ] : nullptr;
-
-			if ( command->mHasOutPipe )
+			if ( nullptr == ( stderrLogFile = fopen( stderrLogFilePath.c_str(), "a" ) ) )
 			{
-				pipe( pipes[ outPipeIndex ] );
+				goto closeFileHandlesAndReturnError;
+			}
+		}
+
+		mChildProcessID = vfork();
+		if ( 0 > mChildProcessID )
+		{
+			goto closeFileHandlesAndReturnError;
+		}
+
+		// Child process
+		if ( 0 == mChildProcessID )
+		{
+			if ( mRedirectStdoutToLogFile )
+			{
+				// Redirect STDOUT to a log file
+				dup2( fileno( stdoutLogFile ), STDOUT_FILENO );
+				fclose( stdoutLogFile );
 			}
 
-			// The method is responsible for closing
-			// the inPipe if it does not equal nullptr.
-			command->_forkRedirectAndExecute( inPipe, outPipe );
+			if ( mRedirectStderrToLogFile )
+			{
+				// Redirect STDERR to a log file
+				dup2( fileno( stderrLogFile ), STDERR_FILENO );
+				fclose( stderrLogFile );
+			}
 
-			outPipeIndex = ( outPipeIndex + 1 ) & 0x1;
-			inPipeIndex = ( inPipeIndex + 1 ) & 0x1;
+			if ( '/' == mApplication[ 0 ] )
+			{
+				execv( mApplication, mArguments );
+			}
+			else
+			{
+				execvp( mApplication, mArguments );
+			}
+
+			_exit( EXIT_FAILURE );
+			return -EPERM;
 		}
 
 		return 0;
+
+	closeFileHandlesAndReturnError:
+
+		if ( nullptr != stdoutLogFile )
+		{
+			fclose( stdoutLogFile );
+		}
+
+		if ( nullptr != stderrLogFile )
+		{
+			fclose( stderrLogFile );
+		}
+
+		return -errno;
 	}
 
 	/**
@@ -568,9 +600,10 @@ public:
 	 */
 	bool isRunning()
 	{
+		int status, returnValue;
+
 		if ( 0 < mChildProcessID )
 		{
-			int status, returnValue;
 			returnValue = waitpid( mChildProcessID, &status, WNOHANG );
 			return 0 == returnValue;
 		}
@@ -652,7 +685,7 @@ public:
 
 	/**
 	 * Move assignment operator.
-	 * @param other
+	 * @param other Command object to move to this instance.
 	 * @return A reference to this Command object is returned.
 	 */
 	Command& operator=(
@@ -668,7 +701,7 @@ public:
 
 	/**
 	 * Copy assignment operator.
-	 * @param other
+	 * @param other Command object to copy to this instance.
 	 * @return A reference to this Command object is returned.
 	 */
 	Command& operator=(
@@ -689,24 +722,6 @@ public:
 	Command& redirectStderrToStdout()
 	{
 		// TODO: Complete this method.
-		return *this;
-	}
-
-	/**
-	 * Redirect the stdout output stream of this command
-	 * to the stdin stream of the given command. Only one command
-	 * can take the stdout stream of this command, so subsequent calls
-	 * override the command that'll consume the stream.
-	 * @param command Reference to the command to take the stdout from this command.
-	 * @return A reference to this Command object is returned.
-	 */
-	Command& redirectStdoutToCommand(
-		Command* command )
-	{
-		mRedirectStdoutToLogFile = false;
-		mRedirectStdoutToCommand = true;
-		mNextCommand = command;
-
 		return *this;
 	}
 
@@ -740,14 +755,14 @@ public:
 	 */
 	int terminate()
 	{
+		int errorCode = 0;
+
 		if ( 0 < mChildProcessID )
 		{
-			int errorCode;
 			errorCode = kill( mChildProcessID, SIGTERM );
-			return errno;
 		}
 
-		return 0;
+		return errorCode;
 	}
 
 	/**
@@ -764,9 +779,9 @@ public:
 		if ( 0 < mChildProcessID )
 		{
 			waitpid( mChildProcessID, &exitStatus, 0 );
-
-			mChildProcessID = -1;
 			mExitStatus = WEXITSTATUS( exitStatus );
+			mChildProcessID = -1;
+
 			return mExitStatus;
 		}
 
