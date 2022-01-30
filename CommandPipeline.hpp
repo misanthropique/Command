@@ -44,7 +44,7 @@ public:
 		// Sanity check
 		for ( size_t index( -1 ); ++index < commands.size(); )
 		{
-			if ( command[ index ].applicationName().empty() )
+			if ( commands[ index ].applicationName().empty() )
 			{
 				throw std::invalid_argument(
 					"Command at index " + std::to_string( index )
