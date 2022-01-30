@@ -195,7 +195,7 @@ private:
 					_exit( EXIT_FAILURE );
 				}
 
-				dup2( fileno( stderrLogFile ), STDERR_FILENO );
+				dup2( stderrLogFileFD, STDERR_FILENO );
 			}
 
 			if ( '/' == mApplication[ 0 ] )
@@ -219,15 +219,6 @@ private:
 		}
 
 		return 0;
-
-	closeFileHandlesAndReturnError:
-
-		if ( nullptr != stderrLogFile )
-		{
-			fclose( stderrLogFile );
-		}
-
-		return -errno;
 	}
 
 	// Generate the name of the log files for stdout and stderr
