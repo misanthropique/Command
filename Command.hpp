@@ -13,6 +13,7 @@
 #include <new>
 #include <signal.h>
 #include <string>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -85,7 +86,7 @@ private:
 		// Append arguments to the end of the array
 		for ( const std::string& argument : arguments )
 		{
-			mArguments[ ++mArgumentCount ] = strdup( argument.c_str() );
+			mArguments[ mArgumentCount++ ] = strdup( argument.c_str() );
 		}
 	}
 
@@ -98,17 +99,20 @@ private:
 			mApplication = nullptr;
 		}
 
-		for ( size_t index( -1 ); ++index < mArgumentsBufferSize; )
+		if ( nullptr != mArguments )
 		{
-			if ( nullptr != mArguments[ index ] )
+			for ( size_t index( -1 ); ++index < mArgumentsBufferSize; )
 			{
-				free( mArguments[ index ] );
-				mArguments[ index ] = nullptr;
+				if ( nullptr != mArguments[ index ] )
+				{
+					free( mArguments[ index ] );
+					mArguments[ index ] = nullptr;
+				}
 			}
-		}
 
-		free( mArguments );
-		mArguments = nullptr;
+			free( mArguments );
+			mArguments = nullptr;
+		}
 
 		mArgumentCount = 0;
 		mArgumentsBufferSize = 0;
@@ -151,7 +155,6 @@ private:
 		int* inPipe,
 		int* outPipe )
 	{
-		FILE* stderrLogFile = nullptr;
 		std::string stdoutLogFilePath;
 		std::string stderrLogFilePath;
 
@@ -194,6 +197,7 @@ private:
 			if ( mRedirectStderrToLogFile )
 			{
 				// Redirect STDERR to a log file
+				
 				dup2( fileno( stderrLogFile ), STDERR_FILENO );
 				fclose( stderrLogFile );
 			}
@@ -283,7 +287,7 @@ private:
 	void _initialize()
 	{
 		mApplication = nullptr;
-		mArgumentCount = 0;
+		mArgumentCount = 1;
 		mArgumentsBufferSize = 128;
 		mArguments = static_cast< char** >( calloc( mArgumentsBufferSize, sizeof( char* ) ) );
 		mChildProcessID = -1;
@@ -360,8 +364,10 @@ public:
 	 * Move constructor.
 	 * @param other Command object to move to this instance.
 	 */
-	Command( Command&& other )
+	Command(
+		Command&& other )
 	{
+		__initialize();
 		_moveAssignment( std::move( other ) );
 	}
 
@@ -369,8 +375,10 @@ public:
 	 * Copy constructor.
 	 * @param other Command object to copy to this instance.
 	 */
-	Command( const Command& other )
+	Command(
+		const Command& other )
 	{
+		_initialize();
 		_copyAssignment( other );
 	}
 
@@ -483,8 +491,8 @@ public:
 	 */
 	void clear()
 	{
-		this->_clear();
-		this->_initialize();
+		_clear();
+		_initialize();
 	}
 
 	/**
@@ -496,52 +504,43 @@ public:
 	{
 		mExitStatus = 0;
 
-		FILE* stdoutLogFile = nullptr;
-		FILE* stderrLogFile = nullptr;
 		std::string stdoutLogFilePath;
 		std::string stderrLogFilePath;
 
 		_getStdLogFilePaths( stdoutLogFilePath, stderrLogFilePath );
 
-		// Open the log file for stdout.
-		if ( mRedirectStdoutToLogFile )
-		{
-			if ( nullptr == ( stdoutLogFile = fopen( stdoutLogFilePath.c_str(), "a" ) ) )
-			{
-				goto closeFileHandlesAndReturnError;
-			}
-		}
-
-		// Open the log file for stderr.
-		if ( mRedirectStderrToLogFile )
-		{
-			if ( nullptr == ( stderrLogFile = fopen( stderrLogFilePath.c_str(), "a" ) ) )
-			{
-				goto closeFileHandlesAndReturnError;
-			}
-		}
-
 		mChildProcessID = vfork();
 		if ( 0 > mChildProcessID )
 		{
-			goto closeFileHandlesAndReturnError;
+			return -errno;
 		}
 
 		// Child process
 		if ( 0 == mChildProcessID )
 		{
+			int stdoutLogFileFD;
+			int stderrLogFileFD;
+
 			if ( mRedirectStdoutToLogFile )
 			{
 				// Redirect STDOUT to a log file
-				dup2( fileno( stdoutLogFile ), STDOUT_FILENO );
-				fclose( stdoutLogFile );
+				if ( -1 == ( stdoutLogFileFD = open( stdoutLogFilePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC ) ) )
+				{
+					_exit( EXIT_FAILURE );
+				}
+
+				dup2( stdoutLogFileFD, STDOUT_FILENO );
 			}
 
 			if ( mRedirectStderrToLogFile )
 			{
 				// Redirect STDERR to a log file
-				dup2( fileno( stderrLogFile ), STDERR_FILENO );
-				fclose( stderrLogFile );
+				if ( -1 == ( stderrLogFileFD = open( stderrLogFilePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC ) ) )
+				{
+					_exit( EXIT_FAILURE );
+				}
+
+				dup2( stderrLogFileFD, STDERR_FILENO );
 			}
 
 			if ( '/' == mApplication[ 0 ] )
@@ -558,20 +557,6 @@ public:
 		}
 
 		return 0;
-
-	closeFileHandlesAndReturnError:
-
-		if ( nullptr != stdoutLogFile )
-		{
-			fclose( stdoutLogFile );
-		}
-
-		if ( nullptr != stderrLogFile )
-		{
-			fclose( stderrLogFile );
-		}
-
-		return -errno;
 	}
 
 	/**
