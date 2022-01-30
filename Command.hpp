@@ -190,7 +190,7 @@ private:
 			{
 				// Redirect STDERR to a log file
 				int stderrLogFileFD;
-				if ( -1 == ( stderrLogFileFD = open( stderrLogFilePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC ) ) )
+				if ( -1 == ( stderrLogFileFD = open( stderrLogFilePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666 ) ) )
 				{
 					_exit( EXIT_FAILURE );
 				}
@@ -511,7 +511,7 @@ public:
 			if ( mRedirectStdoutToLogFile )
 			{
 				// Redirect STDOUT to a log file
-				if ( -1 == ( stdoutLogFileFD = open( stdoutLogFilePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC ) ) )
+				if ( -1 == ( stdoutLogFileFD = open( stdoutLogFilePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666 ) ) )
 				{
 					_exit( EXIT_FAILURE );
 				}
@@ -522,7 +522,7 @@ public:
 			if ( mRedirectStderrToLogFile )
 			{
 				// Redirect STDERR to a log file
-				if ( -1 == ( stderrLogFileFD = open( stderrLogFilePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC ) ) )
+				if ( -1 == ( stderrLogFileFD = open( stderrLogFilePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666 ) ) )
 				{
 					_exit( EXIT_FAILURE );
 				}
