@@ -40,6 +40,8 @@
 class Command
 {
 private:
+	friend class CommandPipeline;
+
 	char* mApplication; // Path to the application to be called
 	char** mArguments;  // Arguments to be passed to the application
 	size_t mArgumentCount; // Number of arguments present
