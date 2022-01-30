@@ -473,7 +473,7 @@ public:
 	 * Get the name of the application being executed.
 	 * @return The name of the application being ran is returned.
 	 */
-	std::string applicationName()
+	std::string applicationName() const
 	{
 		return std::string( ( nullptr == mApplication ) ? "" : mApplication );
 	}
