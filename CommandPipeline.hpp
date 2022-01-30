@@ -6,6 +6,7 @@
 #pragma once
 
 #include <stdexcept>
+#include <string>
 #include <unistd.h>
 #include <vector>
 
@@ -43,9 +44,11 @@ public:
 		// Sanity check
 		for ( size_t index( -1 ); ++index < commands.size(); )
 		{
-			if ( command.applicationName().empty() )
+			if ( command[ index ].applicationName().empty() )
 			{
-				throw std::invalid_argument();
+				throw std::invalid_argument(
+					"Command at index " + std::to_string( index )
+					+ " does not have a set application" );
 			}
 		}
 
@@ -64,7 +67,7 @@ public:
 		// Sanity check
 		if ( command.applicationName().empty() )
 		{
-			throw std::invalid_argument();
+			throw std::invalid_argument( "Command does not have a set application" );
 		}
 
 		// Append the command
@@ -84,7 +87,7 @@ public:
 		// Sanity check
 		if ( command.applicationName().empty() )
 		{
-			throw std::invalid_argument();
+			throw std::invalid_argument( "Command does not have a set application" );
 		}
 
 		// Append the command
@@ -99,14 +102,16 @@ public:
 	 * @return A reference to this CommandPipeline object is returned.
 	 */
 	CommandPipeline& appendCommands(
-		const std::vector< Commnad >& commands )
+		const std::vector< Command >& commands )
 	{
 		// Sanity check
 		for ( size_t index( -1 ); ++index < commands.size(); )
 		{
-			if ( command.applicationName().empty() )
+			if ( commands[ index ].applicationName().empty() )
 			{
-				throw std::invalid_argument();
+				throw std::invalid_argument(
+					"Command at index " + std::to_string( index )
+					+ " does not have a set application" );
 			}
 		}
 
