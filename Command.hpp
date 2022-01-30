@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <fcntl.h>
 #include <new>
 #include <signal.h>
 #include <string>
@@ -160,19 +161,10 @@ private:
 
 		_getStdLogFilePaths( stdoutLogFilePath, stderrLogFilePath );
 
-		// Open the log file for stderr.
-		if ( mRedirectStderrToLogFile )
-		{
-			if ( nullptr == ( stderrLogFile = fopen( stderrLogFilePath.c_str(), "a" ) ) )
-			{
-				goto closeFileHandlesAndReturnError;
-			}
-		}
-
 		mChildProcessID = vfork();
 		if ( 0 > mChildProcessID )
 		{
-			goto closeFileHandlesAndReturnError;
+			return -errno;
 		}
 
 		// Child process
@@ -197,9 +189,13 @@ private:
 			if ( mRedirectStderrToLogFile )
 			{
 				// Redirect STDERR to a log file
-				
+				int stderrLogFileFD;
+				if ( -1 == ( stderrLogFileFD = open( stderrLogFilePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC ) ) )
+				{
+					_exit( EXIT_FAILURE );
+				}
+
 				dup2( fileno( stderrLogFile ), STDERR_FILENO );
-				fclose( stderrLogFile );
 			}
 
 			if ( '/' == mApplication[ 0 ] )
@@ -367,7 +363,7 @@ public:
 	Command(
 		Command&& other )
 	{
-		__initialize();
+		_initialize();
 		_moveAssignment( std::move( other ) );
 	}
 
