@@ -143,9 +143,6 @@ private:
 		mRedirectStderrToLogFile = other.mRedirectStderrToLogFile;
 		mStdoutLogFilePrefix = other.mStdoutLogFilePrefix;
 		mStderrLogFilePrefix = other.mStderrLogFilePrefix;
-
-		mChildProcessID = other.mChildProcessID;
-		mExitStatus = other.mExitStatus;
 	}
 
 	// This method is intended to be called by
@@ -478,6 +475,16 @@ public:
 	std::string applicationName() const
 	{
 		return std::string( ( nullptr == mApplication ) ? "" : mApplication );
+	}
+
+	/**
+	 * Clear the Command object and set
+	 * it back to an initialized state.
+	 */
+	void clear()
+	{
+		this->_clear();
+		this->_initialize();
 	}
 
 	/**
