@@ -196,6 +196,7 @@ private:
 				}
 
 				dup2( stderrLogFileFD, STDERR_FILENO );
+				close( stderrLogFileFD );
 			}
 
 			if ( '/' == mApplication[ 0 ] )
@@ -209,13 +210,6 @@ private:
 
 			_exit( EXIT_FAILURE );
 			return -EPERM;
-		}
-
-		// Parent process
-		if ( nullptr != inPipe )
-		{
-			close( inPipe[ 0 ] );
-			close( inPipe[ 1 ] );
 		}
 
 		return 0;
