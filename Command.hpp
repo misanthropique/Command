@@ -305,7 +305,7 @@ private:
 		mArgumentCount = std::exchange( other.mArgumentCount, 0 );
 		mArgumentsBufferSize = std::exchange( other.mArgumentsBufferSize, 0 );
 
-		mChildProcessID = std::exchange( other.mChildProcessID, -1 );
+		mChildProcessID = other.mChildProcessID.exchange( -1 );
 		mExitStatus = std::exchange( other.mExitStatus, 0 );
 
 		mRedirectStdoutToLogFile = std::exchange( other.mRedirectStdoutToLogFile, false );
