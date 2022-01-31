@@ -180,12 +180,18 @@ public:
 			int* inPipe =  ( 0 < index ) ? pipes[ inPipeIndex ] : nullptr;
 			int* outPipe = ( index < ( numberCommands - 1 ) ) ? pipes[ outPipeIndex ] : nullptr;
 
-			if ( nullptr == outPipe )
+			if ( nullptr != outPipe )
 			{
 				pipe( pipes[ outPipeIndex ] );
 			}
 
 			mCommands[ index ]._forkRedirectToPipeAndExecute( inPipe, outPipe );
+
+			if ( nullptr != inPipe )
+			{
+				close( inPipe[ 0 ] );
+				close( inPipe[ 1 ] );
+			}
 
 			outPipeIndex = ( outPipeIndex + 1 ) & 0x1;
 			inPipeIndex = ( inPipeIndex + 1 ) & 0x1;
