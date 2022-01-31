@@ -5,6 +5,7 @@
  */
 #pragma once
 
+#include <atomic>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
@@ -49,7 +50,8 @@ private:
 	size_t mArgumentCount; // Number of arguments present
 	size_t mArgumentsBufferSize; // Size of the arguments buffer
 
-	pid_t mChildProcessID; // PID of the child process
+	std::atomic< pid_t > mChildProcessID; // PID of the child process
+	//pid_t mChildProcessID; // PID of the child process
 	int mExitStatus; // Exit status of the child process
 
 	bool mRedirectStdoutToLogFile; // The stdout stream should be redirected to a log file
@@ -156,19 +158,20 @@ private:
 		int* inPipe,
 		int* outPipe )
 	{
+		pid_t childProcessID;
 		std::string stdoutLogFilePath;
 		std::string stderrLogFilePath;
 
 		_getStdLogFilePaths( stdoutLogFilePath, stderrLogFilePath );
 
-		mChildProcessID = vfork();
-		if ( 0 > mChildProcessID )
+		childProcessID = vfork();
+		if ( 0 > childProcessID )
 		{
 			return -errno;
 		}
 
 		// Child process
-		if ( 0 == mChildProcessID )
+		if ( 0 == childProcessID )
 		{
 			if ( nullptr != inPipe )
 			{
@@ -211,6 +214,9 @@ private:
 			_exit( EXIT_FAILURE );
 			return -EPERM;
 		}
+
+		// Parent process
+		mChildProcessID = childProcessID;
 
 		return 0;
 	}
@@ -485,19 +491,20 @@ public:
 	{
 		mExitStatus = 0;
 
+		int childProcessID;
 		std::string stdoutLogFilePath;
 		std::string stderrLogFilePath;
 
 		_getStdLogFilePaths( stdoutLogFilePath, stderrLogFilePath );
 
-		mChildProcessID = vfork();
-		if ( 0 > mChildProcessID )
+		childProcessID = vfork();
+		if ( 0 > childProcessID )
 		{
 			return -errno;
 		}
 
 		// Child process
-		if ( 0 == mChildProcessID )
+		if ( 0 == childProcessID )
 		{
 			int stdoutLogFileFD;
 			int stderrLogFileFD;
@@ -536,6 +543,9 @@ public:
 			_exit( EXIT_FAILURE );
 			return -EPERM;
 		}
+
+		// Parent process
+		mChildProcessID = childProcessID;
 
 		return 0;
 	}
@@ -713,15 +723,22 @@ public:
 
 	/**
 	 * Send a terminate signal to the child process if one is running.
+	 * @param wait If set to true, wait on the child process after sending
+	 *             the SIGTERM signal to collect the exit status. [default: false]
 	 * @return Zero is returned on success, else an error code is returned.
 	 */
-	int terminate()
+	int terminate( bool wait = false )
 	{
 		int errorCode = 0;
 
 		if ( 0 < mChildProcessID )
 		{
 			errorCode = kill( mChildProcessID, SIGTERM );
+
+			if ( 0 == errorCode )
+			{
+				errorCode = this->wait();
+			}
 		}
 
 		return errorCode;
