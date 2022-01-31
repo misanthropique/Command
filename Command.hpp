@@ -23,7 +23,12 @@
 #include <vector>
 
 /**
- * Required standard: C++14
+ * Minimum required standard: C++14
+ * Notes:
+ *   - Not thread safe
+ *   - clear(), terminate(), isRunning() are asynchronous.
+ *   - clear() and terminate() can be made to be synchronous by
+ *     supplying true as the parameter argument; which is false by default.
  *
  * A management class for executing other applications
  * without all the hassle of having to write the same code repeatedly.
@@ -96,12 +101,17 @@ private:
 	// Free and zero the contents of this Command object.
 	void _clear()
 	{
+		// Terminate the child process
+		this->terminate( true );
+
+		// Clear the application
 		if ( nullptr != mApplication )
 		{
 			free( mApplication );
 			mApplication = nullptr;
 		}
 
+		// Clear the arguments
 		if ( nullptr != mArguments )
 		{
 			for ( size_t index( -1 ); ++index < mArgumentsBufferSize; )
@@ -117,6 +127,7 @@ private:
 			mArguments = nullptr;
 		}
 
+		// Clear everything else
 		mArgumentCount = 0;
 		mArgumentsBufferSize = 0;
 
@@ -727,7 +738,8 @@ public:
 	 *             the SIGTERM signal to collect the exit status. [default: false]
 	 * @return Zero is returned on success, else an error code is returned.
 	 */
-	int terminate( bool wait = false )
+	int terminate(
+		bool wait = false )
 	{
 		int errorCode = 0;
 
@@ -735,7 +747,7 @@ public:
 		{
 			errorCode = kill( mChildProcessID, SIGTERM );
 
-			if ( 0 == errorCode )
+			if ( wait and ( 0 == errorCode ) )
 			{
 				errorCode = this->wait();
 			}
