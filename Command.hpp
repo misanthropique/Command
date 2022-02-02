@@ -27,19 +27,25 @@
  * Notes:
  *   - Not thread safe
  *   - clear(), terminate(), isRunning() are asynchronous.
- *   - clear() and terminate() can be made to be synchronous by
- *     supplying true as the parameter argument; which is false by default.
+ *   - terminate() can be made to be synchronous by supplying
+ *     true as the parameter argument; which is false by default.
+ *
+ * TODO:
+ *   [ ] Capture std{err,out} from Command as either a string or a vector of strings.
+ *   [ ] Implement redirect of stderr to stdout.
+ *   [ ] Identifiy the set of cases that need to be handled
+ *       and enumerate those cases here. These are the cases
+ *       that could cause fatal unwanted behaviour, such as
+ *       clearing the Command object before the child process
+ *       has completed and leaving a zombie process behind.
  *
  * A management class for executing other applications
  * without all the hassle of having to write the same code repeatedly.
  *
- * If you're looking to set up a pipe, I'd recommend creating a vector
- * of Command objects and then using the redirectStdoutToCommand() method to
- * set the STDOUT of the nth command to the STDIN of the nth + 1 command.
- * The commands will be daisy chained together and when the first
- * command in the chain is executed it will initialize all the commands
- * down the chain. If wait is called, then waiting will happen on all
- * processes down wind of the command that wait was called upon.
+ * There is a CommandPipeline object that can be used to daisy chain
+ * Command objects into a complete pipeline. Only stdout is piped to stdin
+ * per the usual piping behaviour. Redirecting stderr to stdout is something
+ * that will need to be implemented here in Command.hpp.
  *
  * At the moment a 1-to-many (for std(out|err) to many stdin) is not needed
  * any where, but should the occasion arise I can integrate that behaviour
@@ -706,6 +712,24 @@ public:
 		}
 
 		return *this;
+	}
+
+	/**
+	 * Cast the Command object to a string.
+	 * Should no application be set, then the application
+	 * part of the command line will be set as "(null)"
+	 */
+	operator std::string() const
+	{
+		std::string commandAndArgs(
+			( nullptr == mApplication ) ? "(null)" : mApplication );
+
+		for ( size_t index( 0 ); ++index < mArgumentCount; )
+		{
+			commandAndArgs.append( " " ).append( mArguments[ index ] );
+		}
+
+		return commandAndArgs;
 	}
 
 	/**
