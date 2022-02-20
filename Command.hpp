@@ -61,9 +61,16 @@ private:
 	size_t mArgumentCount; // Number of arguments present
 	size_t mArgumentsBufferSize; // Size of the arguments buffer
 
+	std::atmoic< uint32_t > mExecuteCalled;
+	std::atomic< bool > mIsExecuting;
+	std::atomic< bool > mSetForClear;
+	std::atomic< bool > mTerminateCalled;
+
+	// 0 < mChildProcessID :: T == mIsExecuting
 	std::atomic< pid_t > mChildProcessID; // PID of the child process
 	//pid_t mChildProcessID; // PID of the child process
-	int mExitStatus; // Exit status of the child process
+	std::atomic< int > mExitStatus;
+	//int mExitStatus; // Exit status of the child process
 
 	bool mRedirectStdoutToLogFile; // The stdout stream should be redirected to a log file
 	bool mRedirectStderrToLogFile; // The stderr stream should be redirected to a log file
@@ -75,12 +82,19 @@ private:
 	void _appendArguments(
 		const std::vector< std::string >& arguments )
 	{
-		// If needed, update the array size first
+		// Ignore the request if we're currently executing
+		if ( ( 0 == mExecuteCalled.load() ) and ( 0 > mChildProcessID.load() ) )
+		{
+			return;
+		}
+
+		// Return here, nothing to append
 		if ( 0 == arguments.size() )
 		{
 			return;
 		}
 
+		// If needed, update the array size first
 		if ( mArgumentsBufferSize < ( mArgumentCount + arguments.size() + 1 ) )
 		{
 			size_t additionalBlock = 128 * ( ( arguments.size() + 127 ) / 128 );
@@ -324,6 +338,12 @@ private:
 	void _setApplication(
 		const char* application )
 	{
+		// If we're currently executing, do nothing.
+		if ( ( 0 != mExecuteCalled.load() ) or ( 0 < mChildProcessID.load() ) )
+		{
+			return;
+		}
+
 		if ( nullptr != mApplication )
 		{
 			free( mApplication );
@@ -452,7 +472,11 @@ public:
 	Command& appendArgument(
 		const char* argument )
 	{
-		_appendArguments( std::vector< std::string >{ argument } );
+		if ( nullptr != argument )
+		{
+			_appendArguments( std::vector< std::string >{ argument } );
+		}
+
 		return *this;
 	}
 
@@ -464,6 +488,7 @@ public:
 	Command& appendArgument(
 		const std::string& argument )
 	{
+		
 		_appendArguments( std::vector< std::string >{ argument } );
 		return *this;
 	}
@@ -503,9 +528,27 @@ public:
 	 * Initialize the execution of the application.
 	 * @return If the application was successfully initialized, then
 	 *         zero is returned, else a non-zero error code is returned.
+	 *         If another thread is alread present in this method, or
+	 *         if the command is already running, then -ECANCELED is returned.
 	 */
 	int execute()
 	{
+		// Set that we're in the execute method
+		uint32_t previous = mExecuteCalled.fetch_add( 1 );
+
+		if ( 0 < previous )
+		{
+			mExecuteCalled.fetch_add( -1 );
+			return -ECANCELED;
+		}
+
+		// executeCalled is non-zero at this point
+		if ( 0 < mChildProcessID.load() )
+		{
+			mExecuteCalled.fetch_add( -1 );
+			return -ECANCELED;
+		}
+
 		mExitStatus = 0;
 
 		int childProcessID;
@@ -563,6 +606,7 @@ public:
 
 		// Parent process
 		mChildProcessID = childProcessID;
+		mExecuteCalled.fetch_add( -1 );
 
 		return 0;
 	}
@@ -576,6 +620,10 @@ public:
 		int returnCode = 0;
 
 		if ( 0 == ( returnCode = this->execute() ) )
+		{
+			returnCode = this->wait();
+		}
+		else if ( -ECANCELED == returnCode )
 		{
 			returnCode = this->wait();
 		}
@@ -769,6 +817,7 @@ public:
 
 		if ( 0 < mChildProcessID )
 		{
+			// TODO: We only need to send this signal once.
 			errorCode = kill( mChildProcessID, SIGTERM );
 
 			if ( wait and ( 0 == errorCode ) )
@@ -793,6 +842,8 @@ public:
 
 		if ( 0 < mChildProcessID )
 		{
+			// TODO: We only really need 1 thread waiting, the rest can wait
+			//       for that thread to collect the exitStatus.
 			waitpid( mChildProcessID, &exitStatus, 0 );
 			mExitStatus = WEXITSTATUS( exitStatus );
 			mChildProcessID = -1;
