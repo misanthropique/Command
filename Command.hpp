@@ -38,6 +38,7 @@
  *       that could cause fatal unwanted behaviour, such as
  *       clearing the Command object before the child process
  *       has completed and leaving a zombie process behind.
+ *   [ ] Add method to set environment variables
  *
  * A management class for executing other applications
  * without all the hassle of having to write the same code repeatedly.
