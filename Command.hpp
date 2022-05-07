@@ -38,7 +38,6 @@
  *       that could cause fatal unwanted behaviour, such as
  *       clearing the Command object before the child process
  *       has completed and leaving a zombie process behind.
- *   [ ] Add method to set environment variables
  *
  * A management class for executing other applications
  * without all the hassle of having to write the same code repeatedly.
@@ -61,6 +60,13 @@ private:
 	char** mArguments;  // Arguments to be passed to the application
 	size_t mArgumentCount; // Number of arguments present
 	size_t mArgumentsBufferSize; // Size of the arguments buffer
+
+	// User set environment variables
+	std::map< std::string, std::string > mEnvironmentVariables;
+
+	// If set, clear the preset environment variables
+	// before setting the user defined variables.
+	bool mClearEnvironmentVariables;
 
 	std::atmoic< uint32_t > mExecuteCalled;
 	std::atomic< bool > mIsExecuting;
@@ -232,6 +238,16 @@ private:
 
 				dup2( stderrLogFileFD, STDERR_FILENO );
 				close( stderrLogFileFD );
+			}
+
+			if ( mClearEnvironmentVariables )
+			{
+				clearenv();
+			}
+
+			for ( const auto& [ variableName, value ] : mEnvironmentVariables )
+			{
+				setenv( variableName.c_str(), value.c_str(), true );
 			}
 
 			if ( '/' == mApplication[ 0 ] )
@@ -526,6 +542,15 @@ public:
 	}
 
 	/**
+	 * Clear all environment variables.
+	 */
+	void clearEnvironmentVariables()
+	{
+		mEnvironmentVariables.clear();
+		mClearEnvironmentVariables = true;
+	}
+
+	/**
 	 * Initialize the execution of the application.
 	 * @return If the application was successfully initialized, then
 	 *         zero is returned, else a non-zero error code is returned.
@@ -592,6 +617,16 @@ public:
 				dup2( stderrLogFileFD, STDERR_FILENO );
 			}
 
+			if ( mClearEnvironmentVariables )
+			{
+				clearenv();
+			}
+
+			for ( const auto& [ variableName, value ] : mEnvironmentVariables )
+			{
+				setenv( variableName.c_str(), value.c_str(), true );
+			}
+
 			if ( '/' == mApplication[ 0 ] )
 			{
 				execv( mApplication, mArguments );
@@ -640,6 +675,15 @@ public:
 	int exitStatus()
 	{
 		return mExitStatus;
+	}
+
+	/**
+	 * Get the user set environment variables.
+	 * @return A const reference to the map of user set environment variables.
+	 */
+	const std::map< std::string, std::string >& getEnvironmentVariables() const
+	{
+		return mEnvironmentVariables;
 	}
 
 	/**
@@ -802,6 +846,47 @@ public:
 		const std::string& application = std::string() )
 	{
 		_setApplication( application.c_str() );
+		return *this;
+	}
+
+	/**
+	 * Set an environment variable to be set for the application.
+	 * The environment variable will not be set for the calling application.
+	 * If {@param variableName} is empty, then {@param value} is ignored and nothing is done.
+	 * @param variableName Name of the environment variable.
+	 * @param value Value to set the variable to.
+	 * @return A reference to this Command object is returned.
+	 */
+	Command& setEnvironmentVariable(
+		const std::string& variableName,
+		const std::string& value )
+	{
+		if ( not variableName.empty() )
+		{
+			mEnvironmentVariables[ variableName ] = value;
+		}
+
+		return *this;
+	}
+
+	/**
+	 * Set the environment variables to be set for the application.
+	 * The environment variables will not be set for the calling application.
+	 * If the variable name is empty, then the value will be ignored.
+	 * @param environmentVariables A map of variableName to values.
+	 * @return A reference to this Command object is returned.
+	 */
+	Command& setEnvironmentVariables(
+		const std::map< std::string, std::string >& environmentVariables )
+	{
+		for ( const auto& [ variableName, value ] : environmentVariables )
+		{
+			if ( not variableName.empty() )
+			{
+				mEnvironmentVariables[ variableName ] = value;
+			}
+		}
+
 		return *this;
 	}
 
