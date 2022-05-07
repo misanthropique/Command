@@ -12,6 +12,7 @@
 #include <cstring>
 #include <ctime>
 #include <fcntl.h>
+#include <map>
 #include <new>
 #include <signal.h>
 #include <string>
@@ -23,7 +24,7 @@
 #include <vector>
 
 /**
- * Minimum required standard: C++14
+ * Minimum required standard: C++17
  * Notes:
  *   - Not thread safe
  *   - clear(), terminate(), isRunning() are asynchronous.
@@ -402,6 +403,18 @@ private:
 		}
 	}
 
+	// Set the user set environment variables
+	void _setEnvironmentVariables(
+		const std::map< std::string, std::string >& environmentVariables )
+	{
+		for ( const auto& [ variableName, value ] : environmentVariables )
+		{
+			if ( not variableName.empty() )
+			{
+				mEnvironmentVariables[ variableName ] = value;
+			}
+		}
+	}
 public:
 	/**
 	 * Default constructor to empty command.
@@ -462,11 +475,13 @@ public:
 	 */
 	Command(
 		const char* application,
-		const std::vector< std::string >& arguments )
+		const std::vector< std::string >& arguments,
+		const std::map< std::string, std::string >& environmentVariables = std::map< std::string, std::string >() )
 	{
 		_initialize();
 		_setApplication( application );
 		_appendArguments( arguments );
+		_setEnvironmentVariables( environmentVariables );
 	}
 
 	/**
@@ -476,11 +491,13 @@ public:
 	 */
 	Command(
 		const std::string& application,
-		const std::vector< std::string >& arguments )
+		const std::vector< std::string >& arguments,
+		const std::map< std::string, std::string >& environmentVariables = std::map< std::string, std::string >() )
 	{
 		_initialize();
 		_setApplication( application.c_str() );
 		_appendArguments( arguments );
+		_setEnvironmentVariables( environmentVariables );
 	}
 
 	/**
@@ -871,10 +888,10 @@ public:
 		const std::string& variableName,
 		const std::string& value )
 	{
-		if ( not variableName.empty() )
-		{
-			mEnvironmentVariables[ variableName ] = value;
-		}
+		_setEnvironmentVariables(
+			std::map< std::string, std::string > {
+				{ variableName, value }
+			} );
 
 		return *this;
 	}
@@ -889,14 +906,7 @@ public:
 	Command& setEnvironmentVariables(
 		const std::map< std::string, std::string >& environmentVariables )
 	{
-		for ( const auto& [ variableName, value ] : environmentVariables )
-		{
-			if ( not variableName.empty() )
-			{
-				mEnvironmentVariables[ variableName ] = value;
-			}
-		}
-
+		_setEnvironmentVariables( environmentVariables );
 		return *this;
 	}
 
