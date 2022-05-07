@@ -154,6 +154,10 @@ private:
 			mArguments = nullptr;
 		}
 
+		// Clear environment variables
+		mEnvironmentVariables.clear();
+		mClearEnvironmentVariables = false;
+
 		// Clear everything else
 		mArgumentCount = 0;
 		mArgumentsBufferSize = 0;
@@ -178,6 +182,8 @@ private:
 		mArgumentCount = other.mArgumentCount;
 		mArgumentsBufferSize = other.mArgumentsBufferSize;
 		mArguments = static_cast< char** >( calloc( mArgumentsBufferSize, sizeof( char* ) ) );
+		mEnvironmentVariables = other.mEnvironmentVariables;
+		mClearEnvironmentVariables = other.mClearEnvironmentVariables;
 
 		for ( size_t index( -1 ); ++index < mArgumentCount; )
 		{
@@ -325,6 +331,8 @@ private:
 		mArgumentCount = 1;
 		mArgumentsBufferSize = 128;
 		mArguments = static_cast< char** >( calloc( mArgumentsBufferSize, sizeof( char* ) ) );
+		mEnvironmentVariables.clear();
+		mClearEnvironmentVariables = false;
 		mChildProcessID = -1;
 		mExitStatus = 0;
 		mRedirectStdoutToLogFile = false;
@@ -341,6 +349,8 @@ private:
 		mArguments = std::exchange( other.mArguments, nullptr );
 		mArgumentCount = std::exchange( other.mArgumentCount, 0 );
 		mArgumentsBufferSize = std::exchange( other.mArgumentsBufferSize, 0 );
+		mEnvironmentVariables = std::move( other.mEnvironmentVariables );
+		mClearEnvironmentVariables = std::exchange( other.mClearEnvironmentVariables, false );
 
 		mChildProcessID = other.mChildProcessID.exchange( -1 );
 		mExitStatus = std::exchange( other.mExitStatus, 0 );
