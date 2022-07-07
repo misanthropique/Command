@@ -34,11 +34,6 @@
  * TODO:
  *   [ ] Capture std{err,out} from Command as either a string or a vector of strings.
  *   [ ] Implement redirect of stderr to stdout.
- *   [ ] Identifiy the set of cases that need to be handled
- *       and enumerate those cases here. These are the cases
- *       that could cause fatal unwanted behaviour, such as
- *       clearing the Command object before the child process
- *       has completed and leaving a zombie process behind.
  *
  * A management class for executing other applications
  * without all the hassle of having to write the same code repeatedly.
