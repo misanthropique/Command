@@ -945,12 +945,26 @@ public:
 	int terminate(
 		bool wait = false )
 	{
+		static std::atomic< uint32_t > TerminateCount( 0 );
+
 		int errorCode = 0;
 
 		if ( 0 < mChildProcessID )
 		{
-			// TODO: We only need to send this signal once.
-			errorCode = kill( mChildProcessID, SIGTERM );
+			uint32_t count = TerminateCount.fetch_add( 1 );
+
+			if ( 0 == count )
+			{
+				if ( not mTerminateCalled.exchange( true ) )
+				{
+					errorCode = kill( mChildProcessID, SIGTERM );
+
+					if ( 0 != errorCode )
+					{
+						mTerminateCalled.store( false );
+					}
+				}
+			}
 
 			if ( wait and ( 0 == errorCode ) )
 			{
@@ -986,6 +1000,7 @@ public:
 				{
 					mExitStatus = WEXITSTATUS( exitStatus );
 					mChildProcessID = -1;
+					mTerminateCalled.store( false );
 				}
 
 				WaitCount.store( 0 );
