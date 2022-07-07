@@ -69,7 +69,7 @@ private:
 	// before setting the user defined variables.
 	bool mClearEnvironmentVariables;
 
-	std::atmoic< uint32_t > mExecuteCalled;
+	std::atomic< uint32_t > mExecuteCalled;
 	std::atomic< bool > mIsExecuting;
 	std::atomic< bool > mSetForClear;
 	std::atomic< bool > mTerminateCalled;
@@ -970,15 +970,30 @@ public:
 	 */
 	int wait()
 	{
+		static std::atomic< uint32_t > WaitCount( 0 );
+
 		int exitStatus;
 
 		if ( 0 < mChildProcessID )
 		{
-			// TODO: We only really need 1 thread waiting, the rest can wait
-			//       for that thread to collect the exitStatus.
-			waitpid( mChildProcessID, &exitStatus, 0 );
-			mExitStatus = WEXITSTATUS( exitStatus );
-			mChildProcessID = -1;
+			uint32_t count = WaitCount.fetch_add( 1 );
+
+			if ( 0 == count )
+			{
+				int errorCode = waitpid( mChildProcessID, &exitStatus, 0 );
+
+				if ( -1 != errorCode )
+				{
+					mExitStatus = WEXITSTATUS( exitStatus );
+					mChildProcessID = -1;
+				}
+
+				WaitCount.store( 0 );
+			}
+			else
+			{
+				while ( 0 != WaitCount.load() );
+			}
 
 			return mExitStatus;
 		}
