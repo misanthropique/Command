@@ -407,6 +407,12 @@ private:
 	void _setEnvironmentVariables(
 		const std::map< std::string, std::string >& environmentVariables )
 	{
+		// Ignore the request if we're currently executing
+		if ( ( 0 == mExecuteCalled.load() ) and ( 0 > mChildProcessID.load() ) )
+		{
+			return;
+		}
+
 		for ( const auto& [ variableName, value ] : environmentVariables )
 		{
 			if ( not variableName.empty() )
@@ -532,7 +538,6 @@ public:
 	Command& appendArgument(
 		const std::string& argument )
 	{
-		
 		_appendArguments( std::vector< std::string >{ argument } );
 		return *this;
 	}
@@ -570,9 +575,16 @@ public:
 
 	/**
 	 * Clear all environment variables.
+	 * This method call will do nothing if the application is currently executing.
 	 */
 	void clearEnvironmentVariables()
 	{
+		// Ignore the request if we're currently executing
+		if ( ( 0 == mExecuteCalled.load() ) and ( 0 > mChildProcessID.load() ) )
+		{
+			return;
+		}
+
 		mEnvironmentVariables.clear();
 		mClearEnvironmentVariables = true;
 	}
@@ -710,6 +722,8 @@ public:
 	 */
 	const std::map< std::string, std::string >& getEnvironmentVariables() const
 	{
+		// TODO: Should this also include the existing environment variables
+		//       and not just the user set variables?
 		return mEnvironmentVariables;
 	}
 
@@ -739,6 +753,12 @@ public:
 	Command& logStderrToFile(
 		const char* prefix )
 	{
+		// Ignore the request if we're currently executing
+		if ( ( 0 == mExecuteCalled.load() ) and ( 0 > mChildProcessID.load() ) )
+		{
+			return *this;
+		}
+
 		mRedirectStderrToLogFile = true;
 
 		if ( ( nullptr == prefix )
@@ -775,6 +795,12 @@ public:
 	Command& logStdoutToFile(
 		const char* prefix )
 	{
+		// Ignore the request if we're currently executing
+		if ( ( 0 == mExecuteCalled.load() ) and ( 0 > mChildProcessID.load() ) )
+		{
+			return *this;
+		}
+
 		mRedirectStdoutToLogFile = true;
 
 		if ( ( nullptr == prefix )
