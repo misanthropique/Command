@@ -1,0 +1,42 @@
+@startuml
+class "Command" {
++{method} Command();
++{method} Command( Command&& other );
++{method} Command( const Command& other );
++{method} Command( const char* application );
++{method} Command( const std::string& application );
++{method} Command(\n \
+	\tconst char* application,\n \
+	\tconst std::vector< std::string >& arguments,\n \
+	\tconst std::map< std::string, std::string >& environmentVariables = std::map< std::string, std::string >() );
++{method} Command(\n \
+	\tconst std::string& application,\n \
+	\tconst std::vector< std::string >& arguments,\n \
+	\tconst std::map< std::string, std::string >& environmentVariables = std::map< std::string, std::string >() );
++{method} ~Command();
++{method} Command& appendArgument( const char* argument );
++{method} Command& appendArgument( const std::string& argument );
++{method} Command& appendArguments( const std::vector< std::string >& arguments );
++{method} std::string applicationName() const;
++{method} void clear();
++{method} void clearEnvironmentVariables();
++{method} int execute();
++{method} int executeAndWait();
++{method} int exitStatus();
++{method} const std::map< std::string, std::string >& getEnvironmentVariables() const;
++{method} bool isRunning();
++{method} Command& logStderrToFile( const char* prefix );
++{method} Command& logStderrToFile( const std::string& prefix );
++{method} Command& logStdoutToFile( const char* prefix );
++{method} Command& logStdoutToFile( const std::string& prefix );
++{method} Command& operator=( Command&& other );
++{method} Command& operator=( const Command& other );
++{method} operator std::string() const;
++{method} Command& setApplication( const char* application );
++{method} Command& setApplication( const std::string& application = std::string() );
++{method} Command& setEnvironmentVariable( const std::string& variableName, const std::string& value );
++{method} Command& setEnvironmentVariables( const std::map< std::string, std::string >& environmentVariables );
++{method} int terminate( bool wait = false );
++{method} int wait();
+}
+@enduml
